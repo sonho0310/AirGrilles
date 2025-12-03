@@ -331,6 +331,7 @@
                                                 onBlur={() => handleBlur(flowCMH, 'flowCMH')}
                                             />
                                         </div>
+                                        <p className="text-[10px] text-slate-400 italic mt-1 text-right">1 l/s = 3.6 m³/h</p>
                                     </div>
 
                                     <div>
@@ -341,6 +342,7 @@
                                             onBlur={() => handleBlur(velocity, 'velocity')}
                                             step="0.1"
                                         />
+                                        <p className="text-[10px] text-slate-400 italic mt-1 text-right">v = Q / A_eff</p>
                                     </div>
 
                                     <div>
@@ -350,6 +352,7 @@
                                             onFocus={() => handleFocus(setSurface)}
                                             onBlur={() => handleBlur(surface, 'surface')}
                                         />
+                                        <p className="text-[10px] text-slate-400 italic mt-1 text-right">A_neck = A_eff / (%Surface)</p>
                                     </div>
                                 </div>
                             </div>
@@ -557,4 +560,3 @@
     </script>
 </body>
 </html>
-
