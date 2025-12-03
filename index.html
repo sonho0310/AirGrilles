@@ -1,5 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Wind, Save, Trash2, ArrowRight, List, Calculator, RotateCcw, Zap, Ruler } from 'lucide-react';
+
+// --- ICONS (SVG nội bộ - Không cần cài thư viện lucide-react) ---
+const Zap = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const RotateCcw = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+);
+const CalculatorIcon = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+);
+const Ruler = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg>
+);
+const ArrowRight = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+);
+const ListIcon = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+);
+const Wind = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+);
+const Save = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+);
+const Trash2 = ({ size = 20, className = "" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+);
 
 // --- COMPONENT INPUT ---
 const FloatingInput = ({ id, label, value, onChange, onFocus, onBlur, step = "1", type = "number" }) => (
@@ -35,7 +63,7 @@ const App = () => {
   
   // --- States cho phần tính nhanh kích thước tùy ý ---
   const [customHeight, setCustomHeight] = useState('');
-  const [customWidth, setCustomWidth] = useState(''); // Thêm state cho Width tùy chỉnh
+  const [customWidth, setCustomWidth] = useState('');
   
   // --- States cho kết quả ---
   const [requiredArea, setRequiredArea] = useState(0); // mm2
@@ -90,8 +118,6 @@ const App = () => {
          prevValues.current.customWidth = autoWidthVal; 
      }
   }, [requiredArea, customHeight]); 
-  // Lưu ý: Không đưa autoWidthVal vào dependency vì nó được tính lại mỗi render, 
-  // nhưng requiredArea và customHeight là nguồn gốc thay đổi.
 
   const handleBlur = (val, fieldName, setter) => {
       if (val === '' || val === null || isNaN(parseFloat(val))) {
@@ -112,19 +138,10 @@ const App = () => {
               if (autoWidthVal !== '') {
                   setCustomWidth(autoWidthVal);
               } else {
-                  // Nếu không có auto (do chưa nhập height) thì giữ nguyên hoặc về rỗng
                   if(val !== '') setCustomWidth(prevValues.current.customWidth);
               }
           }
-      } else {
-          // Nếu nhập giá trị hợp lệ, lưu vào ref để lần sau lỡ xóa thì restore về số vừa nhập (nếu muốn)
-          // HOẶC: Ở đây logic "trả về kết quả của bạn chọn" tức là trả về Auto.
-          // Nên ta cứ để Auto Width là chân ái.
-          if (fieldName !== 'customWidth') {
-             // Cập nhật ref cho các trường khác
-             // (Riêng customWidth ta ưu tiên restore về AutoWidthVal hơn là giá trị nhập cũ)
-          }
-      }
+      } 
   };
 
 
@@ -310,7 +327,7 @@ const App = () => {
              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
              <div className="p-5">
                 <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <Calculator size={14} /> Diện tích cổ yêu cầu
+                    <CalculatorIcon size={14} /> Diện tích cổ yêu cầu
                 </h3>
                 <div className="flex items-end gap-1.5">
                     <span className="text-3xl font-bold text-slate-800 tracking-tight">
@@ -321,7 +338,7 @@ const App = () => {
              </div>
           </div>
 
-          {/* Card 3: Tính nhanh theo chiều cao (CÓ HIỂN THỊ VẬN TỐC & NHẬP WIDTH) */}
+          {/* Card 3: Tính nhanh theo chiều cao */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-orange-400">
              <div className="flex items-center gap-2 mb-4 text-slate-700">
                 <Ruler size={16} className="text-orange-500" />
@@ -337,7 +354,7 @@ const App = () => {
                     onBlur={() => handleBlur(customHeight, 'customHeight')}
                 />
 
-                {/* Nhập Chiều Rộng (MỚI) */}
+                {/* Nhập Chiều Rộng */}
                 <div className="relative">
                     <FloatingInput 
                         id="customWidth" label="Chiều rộng (mm)" value={customWidth}
@@ -382,7 +399,7 @@ const App = () => {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
               <div className="flex items-center gap-2 text-slate-700">
-                <List size={20} className="text-blue-600" />
+                <ListIcon size={20} className="text-blue-600" />
                 <h2 className="text-sm font-bold uppercase">Kích Thước Đề Xuất</h2>
               </div>
               <span className="text-[10px] bg-blue-50 text-blue-600 py-1 px-2.5 rounded-full font-bold uppercase tracking-wide border border-blue-100">Auto-Sizing</span>
@@ -445,7 +462,7 @@ const App = () => {
             <div className="flex-1 overflow-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
                 {savedList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-300">
-                        <List size={40} strokeWidth={1.5} className="mb-2 opacity-50" />
+                        <ListIcon size={40} strokeWidth={1.5} className="mb-2 opacity-50" />
                         <p className="text-xs font-medium italic">Chưa lưu dữ liệu nào</p>
                     </div>
                 ) : (
