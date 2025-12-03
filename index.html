@@ -1,311 +1,507 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tính Toán Kích Thước Ống Gió</title>
-    <!-- Sử dụng Tailwind CSS cho giao diện đẹp nhanh chóng -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome cho icon -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body {
-            background-color: #f0f9ff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .input-group {
-            transition: all 0.3s ease;
-        }
-        /* Hiệu ứng focus nhẹ nhàng */
-        input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
-        /* Tùy chỉnh thanh cuộn cho số */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            opacity: 1;
-        }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
+import React, { useState, useEffect, useRef } from 'react';
+import { Wind, Save, Trash2, ArrowRight, List, Calculator, RotateCcw, Zap, Ruler } from 'lucide-react';
 
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
-        <!-- Header -->
-        <div class="bg-blue-600 p-6 text-white text-center">
-            <h1 class="text-2xl font-bold uppercase tracking-wider"><i class="fa-solid fa-wind mr-2"></i>Tính Toán Ống Gió</h1>
-            <p class="text-blue-100 text-sm mt-1">Tự động tính toán & quy đổi kích thước</p>
-        </div>
+// --- COMPONENT INPUT ---
+const FloatingInput = ({ id, label, value, onChange, onFocus, onBlur, step = "1", type = "number" }) => (
+  <div className="relative z-0 w-full group mt-1">
+    <input
+      type={type}
+      name={id}
+      id={id}
+      className="block py-2.5 px-0 w-full text-lg text-slate-800 bg-transparent border-0 border-b-2 border-slate-300 appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer font-bold font-mono"
+      placeholder=" "
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      step={step}
+      autoComplete="off"
+    />
+    <label
+      htmlFor={id}
+      className="peer-focus:font-medium absolute text-sm text-slate-500 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6 font-semibold whitespace-nowrap"
+    >
+      {label}
+    </label>
+  </div>
+);
 
-        <div class="p-6 space-y-6">
-            
-            <!-- Phần 1: Chọn phương pháp nhập liệu -->
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <label class="block text-gray-700 font-semibold mb-3">Dữ liệu đầu vào:</label>
-                <div class="flex gap-4">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="inputMode" value="flow" checked onclick="toggleMode('flow')" class="w-5 h-5 text-blue-600 focus:ring-blue-500">
-                        <span class="text-gray-800">Nhập Lưu Lượng (Q)</span>
-                    </label>
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="inputMode" value="size" onclick="toggleMode('size')" class="w-5 h-5 text-blue-600 focus:ring-blue-500">
-                        <span class="text-gray-800">Ước tính từ Ống Cũ</span>
-                    </label>
+const App = () => {
+  // --- States cho phần nhập liệu chính ---
+  const [flowLS, setFlowLS] = useState(100);
+  const [flowCMH, setFlowCMH] = useState(360);
+  const [velocity, setVelocity] = useState(2.5);
+  const [surface, setSurface] = useState(80);
+  
+  // --- States cho phần tính nhanh kích thước tùy ý ---
+  const [customHeight, setCustomHeight] = useState('');
+  const [customWidth, setCustomWidth] = useState(''); // Thêm state cho Width tùy chỉnh
+  
+  // --- States cho kết quả ---
+  const [requiredArea, setRequiredArea] = useState(0); // mm2
+  const [suggestedSizes, setSuggestedSizes] = useState([]);
+  
+  // --- State lưu giá trị cũ (Restore khi blur) ---
+  const prevValues = useRef({ flowLS: 100, flowCMH: 360, velocity: 2.5, surface: 80, customHeight: '', customWidth: '' });
+
+  // --- State danh sách đã lưu ---
+  const [savedList, setSavedList] = useState([]);
+
+  // --- Xử lý nhập liệu Flow/Velocity/Surface ---
+  const handleLSChange = (val) => {
+    setFlowLS(val);
+    if (val === '' || val === null) { setFlowCMH(''); return; }
+    const ls = parseFloat(val);
+    if (!isNaN(ls)) { setFlowCMH(Math.round(ls * 3.6 * 100) / 100); }
+  };
+
+  const handleCMHChange = (val) => {
+    setFlowCMH(val);
+    if (val === '' || val === null) { setFlowLS(''); return; }
+    const cmh = parseFloat(val);
+    if (!isNaN(cmh)) { setFlowLS(Math.round(cmh / 3.6 * 100) / 100); }
+  };
+
+  // --- Logic Focus/Blur chung ---
+  const handleFocus = (setter) => { setter(''); };
+
+  // --- Helper: Làm tròn theo chuẩn 50mm (Nearest 50) ---
+  const roundToNearest50 = (val) => {
+      let rounded = Math.round(val / 50) * 50;
+      return rounded < 50 ? 50 : rounded;
+  };
+
+  // Tính toán Auto Width (để dùng cho logic restore)
+  // Logic: Nếu có Height và Area -> Tính Width gợi ý
+  let autoWidthVal = '';
+  if (requiredArea > 0 && parseFloat(customHeight) > 0) {
+      const h = parseFloat(customHeight);
+      const rawW = requiredArea / h;
+      autoWidthVal = roundToNearest50(rawW);
+  }
+
+  // --- Sync Auto Width vào Custom Width ---
+  // Khi thông số đầu vào thay đổi (Lưu lượng hoặc Chiều cao nhập vào thay đổi)
+  // -> Tự động update ô Width theo gợi ý mới
+  useEffect(() => {
+     if(autoWidthVal !== '') {
+         setCustomWidth(autoWidthVal);
+         // Update luôn ref để blur hoạt động đúng
+         prevValues.current.customWidth = autoWidthVal; 
+     }
+  }, [requiredArea, customHeight]); 
+  // Lưu ý: Không đưa autoWidthVal vào dependency vì nó được tính lại mỗi render, 
+  // nhưng requiredArea và customHeight là nguồn gốc thay đổi.
+
+  const handleBlur = (val, fieldName, setter) => {
+      if (val === '' || val === null || isNaN(parseFloat(val))) {
+          if (fieldName === 'flowLS') {
+              setFlowLS(prevValues.current.flowLS);
+              setFlowCMH(prevValues.current.flowCMH);
+          } else if (fieldName === 'flowCMH') {
+              setFlowCMH(prevValues.current.flowCMH);
+              setFlowLS(prevValues.current.flowLS);
+          } else if (fieldName === 'velocity') {
+              setVelocity(prevValues.current.velocity);
+          } else if (fieldName === 'surface') {
+              setSurface(prevValues.current.surface);
+          } else if (fieldName === 'customHeight') {
+             if(val !== '') setCustomHeight(prevValues.current.customHeight);
+          } else if (fieldName === 'customWidth') {
+              // LOGIC MỚI: Nếu xóa trắng ô Width -> Restore về giá trị Auto tính toán
+              if (autoWidthVal !== '') {
+                  setCustomWidth(autoWidthVal);
+              } else {
+                  // Nếu không có auto (do chưa nhập height) thì giữ nguyên hoặc về rỗng
+                  if(val !== '') setCustomWidth(prevValues.current.customWidth);
+              }
+          }
+      } else {
+          // Nếu nhập giá trị hợp lệ, lưu vào ref để lần sau lỡ xóa thì restore về số vừa nhập (nếu muốn)
+          // HOẶC: Ở đây logic "trả về kết quả của bạn chọn" tức là trả về Auto.
+          // Nên ta cứ để Auto Width là chân ái.
+          if (fieldName !== 'customWidth') {
+             // Cập nhật ref cho các trường khác
+             // (Riêng customWidth ta ưu tiên restore về AutoWidthVal hơn là giá trị nhập cũ)
+          }
+      }
+  };
+
+
+  // --- Tính toán chính ---
+  useEffect(() => {
+    const ls = parseFloat(flowLS);
+    const vel = parseFloat(velocity);
+    const surf = parseFloat(surface);
+
+    if (isNaN(ls) || isNaN(vel) || isNaN(surf) || ls <= 0 || vel <= 0 || surf <= 0) {
+      setRequiredArea(0);
+      setSuggestedSizes([]);
+      return;
+    }
+
+    prevValues.current = { 
+        ...prevValues.current,
+        flowLS: ls, 
+        flowCMH: parseFloat(flowCMH) || (ls * 3.6), 
+        velocity: vel, 
+        surface: surf 
+    };
+
+    const Q_m3s = ls / 1000;
+    const A_eff_m2 = Q_m3s / vel;
+    const A_gross_m2 = A_eff_m2 / (surf / 100);
+    const A_gross_mm2 = A_gross_m2 * 1000000;
+    
+    setRequiredArea(Math.round(A_gross_mm2));
+
+    // Auto-sizing Suggestions
+    const standardWidths = [150, 200, 250, 300, 350, 400, 450, 500, 600, 800, 1000];
+    const suggestions = [];
+    standardWidths.forEach(width => {
+        let rawHeight = A_gross_mm2 / width;
+        let roundedHeight = roundToNearest50(rawHeight);
+        const A_actual_gross_m2 = (width * roundedHeight) / 1000000;
+        const A_actual_eff_m2 = A_actual_gross_m2 * (surf / 100);
+        const actualVelocity = Q_m3s / A_actual_eff_m2;
+        const ratio = width / roundedHeight;
+        
+        if (ratio >= 0.25 && ratio <= 6) {
+            suggestions.push({
+                width,
+                height: roundedHeight,
+                actualVelocity: actualVelocity.toFixed(2),
+                area: (width * roundedHeight),
+                ratio: ratio.toFixed(1)
+            });
+        }
+    });
+    setSuggestedSizes(suggestions);
+  }, [flowLS, flowCMH, velocity, surface]);
+
+  // --- TÍNH TOÁN DYNAMIC CHO PHẦN CUSTOM (Dựa trên giá trị đang nhập) ---
+  let currentCustomVelocity = 0;
+  // Dùng customWidth (user nhập hoặc auto) và customHeight để tính vận tốc
+  if (parseFloat(customWidth) > 0 && parseFloat(customHeight) > 0) {
+      const w = parseFloat(customWidth);
+      const h = parseFloat(customHeight);
+      
+      const Q_m3s = parseFloat(flowLS) / 1000;
+      const A_actual_gross_m2 = (w * h) / 1000000;
+      const A_actual_eff_m2 = A_actual_gross_m2 * (parseFloat(surface) / 100);
+      const v = A_actual_eff_m2 > 0 ? (Q_m3s / A_actual_eff_m2).toFixed(2) : 0;
+      
+      currentCustomVelocity = v;
+  }
+
+  // --- Helper: Thêm kích thước tùy chọn ---
+  const addCustomSize = () => {
+      const h = parseFloat(customHeight);
+      const w = parseFloat(customWidth);
+      
+      if (!h || h <= 0 || !w || w <= 0) return;
+
+      const size = {
+          width: w,
+          height: h,
+          actualVelocity: currentCustomVelocity,
+          area: w * h,
+          ratio: (w/h).toFixed(2)
+      };
+      addToSavedList(size);
+  }
+
+  // --- Các hàm quản lý danh sách ---
+  const addToSavedList = (size) => {
+    const newItem = {
+        id: Date.now(),
+        flow: flowLS,
+        velocityInput: velocity,
+        width: size.width,
+        height: size.height,
+        actualVel: size.actualVelocity,
+        qty: 1
+    };
+    setSavedList([...savedList, newItem]);
+  };
+
+  const removeFromSavedList = (id) => {
+    setSavedList(savedList.filter(item => item.id !== id));
+  };
+
+  const updateQty = (id, newQty) => {
+      if(newQty < 1) return;
+      setSavedList(savedList.map(item => item.id === id ? {...item, qty: parseInt(newQty)} : item));
+  };
+
+  const clearAll = () => {
+    setFlowLS(100);
+    setFlowCMH(360);
+    setVelocity(2.5);
+    setSurface(80);
+    setCustomHeight('');
+    setCustomWidth('');
+    prevValues.current = { flowLS: 100, flowCMH: 360, velocity: 2.5, surface: 80, customHeight: '', customWidth: '' };
+    setSavedList([]);
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 font-sans text-slate-800">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* ================= CỘT TRÁI: NHẬP LIỆU ================= */}
+        <div className="lg:col-span-3 space-y-5">
+          
+          {/* Card 1: Thông số chính */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2 text-slate-700">
+                    <div className="bg-slate-100 p-1.5 rounded-lg">
+                        <Zap size={16} className="text-slate-600" />
+                    </div>
+                    <h2 className="text-sm font-bold uppercase tracking-wide">Thông Số</h2>
                 </div>
+                <button onClick={clearAll} className="text-slate-400 hover:text-red-500 transition-colors" title="Reset">
+                    <RotateCcw size={14} />
+                </button>
             </div>
 
-            <!-- Phần 2: Inputs -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div>
+                <div className="grid grid-cols-2 gap-6">
+                    <FloatingInput 
+                        id="flowLS" label="L/S" value={flowLS} 
+                        onChange={handleLSChange}
+                        onFocus={() => handleFocus(setFlowLS)}
+                        onBlur={() => handleBlur(flowLS, 'flowLS')}
+                    />
+                    <FloatingInput 
+                        id="flowCMH" label="m³/h (CMH)" value={flowCMH} 
+                        onChange={handleCMHChange}
+                        onFocus={() => handleFocus(setFlowCMH)}
+                        onBlur={() => handleBlur(flowCMH, 'flowCMH')}
+                    />
+                </div>
+              </div>
+
+              <div>
+                <FloatingInput 
+                    id="velocity" label="Vận tốc (m/s)" value={velocity} 
+                    onChange={setVelocity}
+                    onFocus={() => handleFocus(setVelocity)}
+                    onBlur={() => handleBlur(velocity, 'velocity')}
+                    step="0.1"
+                />
+              </div>
+
+              <div>
+                <FloatingInput 
+                    id="surface" label="Diện tích thoáng (%)" value={surface} 
+                    onChange={setSurface}
+                    onFocus={() => handleFocus(setSurface)}
+                    onBlur={() => handleBlur(surface, 'surface')}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Kết quả tính toán sơ bộ */}
+          <div className="relative overflow-hidden rounded-xl shadow-md border border-blue-100 bg-white group">
+             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+             <div className="p-5">
+                <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Calculator size={14} /> Diện tích cổ yêu cầu
+                </h3>
+                <div className="flex items-end gap-1.5">
+                    <span className="text-3xl font-bold text-slate-800 tracking-tight">
+                        {requiredArea > 0 ? requiredArea.toLocaleString() : "---"}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-400 mb-1.5">mm²</span>
+                </div>
+             </div>
+          </div>
+
+          {/* Card 3: Tính nhanh theo chiều cao (CÓ HIỂN THỊ VẬN TỐC & NHẬP WIDTH) */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-orange-400">
+             <div className="flex items-center gap-2 mb-4 text-slate-700">
+                <Ruler size={16} className="text-orange-500" />
+                <h2 className="text-sm font-bold uppercase tracking-wide">Fix Chiều Cao</h2>
+            </div>
+            
+            <div className="space-y-4">
+                {/* Nhập Chiều Cao */}
+                <FloatingInput 
+                    id="customHeight" label="Chiều cao (mm)" value={customHeight} 
+                    onChange={setCustomHeight}
+                    onFocus={() => handleFocus(setCustomHeight)}
+                    onBlur={() => handleBlur(customHeight, 'customHeight')}
+                />
+
+                {/* Nhập Chiều Rộng (MỚI) */}
+                <div className="relative">
+                    <FloatingInput 
+                        id="customWidth" label="Chiều rộng (mm)" value={customWidth}
+                        onChange={setCustomWidth}
+                        onFocus={() => handleFocus(setCustomWidth)}
+                        onBlur={() => handleBlur(customWidth, 'customWidth')}
+                    />
+                    {/* Chỉ dẫn nhỏ nếu đang ở chế độ chỉnh sửa thủ công mà khác với auto */}
+                    {autoWidthVal && parseFloat(customWidth) !== autoWidthVal && customWidth !== '' && (
+                        <div className="absolute right-0 top-0 -mt-1 mr-1">
+                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">
+                                Gợi ý: {autoWidthVal}
+                            </span>
+                        </div>
+                    )}
+                </div>
                 
-                <!-- Cột Trái: Thông số đầu vào -->
-                <div class="space-y-4">
-                    
-                    <!-- Mode: Nhập Lưu Lượng (Đã chia đôi) -->
-                    <div id="flowInput" class="input-group">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Lưu lượng gió</label>
-                        <div class="grid grid-cols-2 gap-3">
-                            <!-- Ô nhập l/s -->
-                            <div class="relative">
-                                <input type="number" id="airflow_ls" oninput="syncFlow('ls')" class="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg transition text-center font-semibold text-blue-800" placeholder="l/s">
-                                <span class="absolute right-2 top-2 text-gray-400 text-xs font-bold">L/s</span>
-                            </div>
-                            <!-- Ô nhập m3/h -->
-                            <div class="relative">
-                                <input type="number" id="airflow" oninput="syncFlow('m3h')" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg transition text-center font-semibold text-blue-800" placeholder="m³/h">
-                                <span class="absolute right-2 top-2 text-gray-400 text-xs font-bold">m³/h</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Mode: Nhập Size Cũ -->
-                    <div id="sizeInput" class="input-group hidden space-y-3">
-                        <p class="text-xs text-orange-600 italic"><i class="fa-solid fa-circle-info"></i> Nhập size ống hiện tại để tính tương đương.</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500">Rộng cũ (W)</label>
-                                <input type="number" id="oldW" oninput="calculate()" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="mm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500">Cao cũ (H)</label>
-                                <input type="number" id="oldH" oninput="calculate()" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="mm">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Vận tốc gió (Dùng chung) -->
-                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Vận tốc gió (m/s) 
-                        </label>
-                        <div class="flex items-center gap-2">
-                            <input type="range" id="velocityRange" min="1" max="15" step="0.5" value="6" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="syncVelocity(this.value)">
-                            <input type="number" id="velocityInput" value="6" class="w-16 p-1 text-center border border-gray-300 rounded-lg font-bold text-blue-700 text-sm" oninput="syncVelocity(this.value)">
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>Êm (4-5)</span>
-                            <span>Chuẩn (6-8)</span>
-                            <span>Ồn (>10)</span>
-                        </div>
-                    </div>
-
+                {/* Kết quả Vận tốc tương ứng */}
+                <div className="bg-orange-50/50 p-3 rounded border border-orange-100 flex justify-between items-center">
+                     <span className="text-xs font-bold text-slate-500 uppercase">Vận tốc thực:</span>
+                     <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${parseFloat(currentCustomVelocity) > parseFloat(velocity) ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
+                        {currentCustomVelocity > 0 ? currentCustomVelocity + ' m/s' : '---'}
+                    </span>
                 </div>
 
-                <!-- Cột Phải: Kết quả (Hiển thị luôn) -->
-                <div class="space-y-4">
-                    <div id="summary" class="text-xs text-gray-500 text-right h-4">
-                        <!-- Placeholder cho text trạng thái -->
-                    </div>
-
-                    <!-- Kết quả Ống Vuông (Đưa lên đầu - Ưu Tiên) -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm ring-1 ring-blue-100">
-                        <div class="flex items-center gap-3 mb-3 border-b border-blue-200 pb-2">
-                            <!-- Icon Ống Vuông MỚI (Thin SVG) -->
-                            <div class="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-md">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div class="text-sm text-blue-800 font-bold uppercase">Kích thước Ống Vuông</div>
-                                <div class="text-xs text-blue-600">Kết quả đề xuất</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Công cụ chọn cạnh -->
-                        <div class="flex items-end justify-between gap-3 bg-white p-3 rounded-lg border border-blue-100">
-                            <div class="flex-1">
-                                <label class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Cố định Chiều Cao (H)</label>
-                                <div class="relative group">
-                                    <input type="number" id="fixedH" value="250" step="50" class="w-full p-2 pl-3 pr-8 text-lg font-semibold text-gray-700 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition" oninput="recalcRect()">
-                                    <span class="absolute right-2 top-2.5 text-xs text-gray-400 font-normal">mm</span>
-                                </div>
-                            </div>
-                            
-                            <div class="text-blue-400 mb-3"><i class="fa-solid fa-arrow-right-long"></i></div>
-                            
-                            <div class="flex-1 text-right">
-                                <label class="block text-[10px] text-gray-500 font-bold uppercase mb-1">Chiều Rộng (W) Cần:</label>
-                                <div class="text-3xl font-bold text-blue-700 tracking-tight" id="resRectW">-</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Kết quả Ống Tròn (Xuống dưới - Tham khảo) -->
-                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between opacity-80 hover:opacity-100 transition-opacity">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                <i class="fa-regular fa-circle text-gray-500 text-sm"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs text-gray-600 font-semibold uppercase">Ống Tròn (Tham khảo)</div>
-                            </div>
-                        </div>
-                        <div class="text-lg font-bold text-gray-600" id="resRound">-</div>
-                    </div>
-
-                </div>
+                <button 
+                    onClick={addCustomSize}
+                    disabled={!customHeight || !customWidth || parseFloat(customHeight) <= 0 || parseFloat(customWidth) <= 0}
+                    className="w-full py-2 bg-white border border-slate-200 hover:border-orange-400 hover:text-orange-600 text-slate-600 rounded font-bold text-xs transition-all flex justify-center items-center gap-1 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                >
+                    Thêm vào List <ArrowRight size={12} />
+                </button>
             </div>
+          </div>
+
         </div>
-    </div>
 
-    <script>
-        let currentFlow = 0; // m3/h
-        let currentArea = 0; // m2 needed
+        {/* ================= CỘT PHẢI: KẾT QUẢ & DANH SÁCH ================= */}
+        <div className="lg:col-span-9 grid grid-cols-1 xl:grid-cols-2 gap-6">
+          
+          {/* Bảng gợi ý kích thước */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2 text-slate-700">
+                <List size={20} className="text-blue-600" />
+                <h2 className="text-sm font-bold uppercase">Kích Thước Đề Xuất</h2>
+              </div>
+              <span className="text-[10px] bg-blue-50 text-blue-600 py-1 px-2.5 rounded-full font-bold uppercase tracking-wide border border-blue-100">Auto-Sizing</span>
+            </div>
 
-        // Đồng bộ thanh trượt và ô nhập vận tốc
-        function syncVelocity(val) {
-            document.getElementById('velocityRange').value = val;
-            document.getElementById('velocityInput').value = val;
-            calculate(); // Tính lại ngay khi kéo thanh trượt
-        }
+            <div className="flex-1 overflow-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
+                {suggestedSizes.length > 0 ? (
+                <table className="w-full text-left text-sm">
+                  <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm shadow-sm z-10 text-slate-500 text-xs uppercase font-semibold">
+                    <tr>
+                      <th className="p-3 pl-4">WxH (mm)</th>
+                      <th className="p-3 text-right">Diện tích</th>
+                      <th className="p-3 text-center">V.Tốc</th>
+                      <th className="p-3 text-right pr-4">Tác vụ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {suggestedSizes.map((size, index) => (
+                      <tr key={index} className="hover:bg-blue-50/50 transition-colors group">
+                        <td className="p-3 pl-4 font-bold text-slate-700">{size.width} x {size.height}</td>
+                        <td className="p-3 text-right text-slate-500 font-mono text-xs">{size.area.toLocaleString()}</td>
+                        <td className="p-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${parseFloat(size.actualVelocity) > parseFloat(velocity) ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                {size.actualVelocity} m/s
+                            </span>
+                        </td>
+                        <td className="p-2 text-right pr-4">
+                          <button
+                            onClick={() => addToSavedList(size)}
+                            className="text-xs bg-white border border-slate-200 text-slate-600 hover:border-blue-500 hover:text-blue-600 px-3 py-1.5 rounded shadow-sm transition-all inline-flex items-center gap-1 active:scale-95"
+                          >
+                            Chọn <ArrowRight size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                ) : (
+                <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-300">
+                    <Wind size={40} strokeWidth={1.5} className="mb-2 opacity-50" />
+                    <p className="text-xs font-medium">Nhập thông số để tính toán</p>
+                </div>
+                )}
+            </div>
+          </div>
 
-        // Đồng bộ 2 ô nhập lưu lượng (l/s và m3/h)
-        function syncFlow(source) {
-            const lsInput = document.getElementById('airflow_ls');
-            const m3hInput = document.getElementById('airflow');
-
-            if (source === 'ls') {
-                const ls = parseFloat(lsInput.value);
-                if (!isNaN(ls)) {
-                    // 1 l/s = 3.6 m3/h
-                    m3hInput.value = Math.round(ls * 3.6);
-                } else {
-                    m3hInput.value = '';
-                }
-            } else {
-                const m3h = parseFloat(m3hInput.value);
-                if (!isNaN(m3h)) {
-                    // 1 m3/h = 1/3.6 l/s
-                    lsInput.value = Math.round(m3h / 3.6);
-                } else {
-                    lsInput.value = '';
-                }
-            }
-            calculate();
-        }
-
-        // Chuyển đổi chế độ nhập liệu
-        function toggleMode(mode) {
-            const flowInput = document.getElementById('flowInput');
-            const sizeInput = document.getElementById('sizeInput');
+          {/* Bảng danh sách đã chọn (BOQ) */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2 text-slate-700">
+                <Save size={20} className="text-emerald-600" />
+                <h2 className="text-sm font-bold uppercase">Danh Sách Đã Chọn</h2>
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {savedList.length} items
+              </span>
+            </div>
             
-            if (mode === 'flow') {
-                flowInput.classList.remove('hidden');
-                sizeInput.classList.add('hidden');
-                // Focus vào ô m3/h
-                document.getElementById('airflow').focus();
-            } else {
-                flowInput.classList.add('hidden');
-                sizeInput.classList.remove('hidden');
-                document.getElementById('oldW').focus();
-            }
-            calculate(); // Tính lại theo mode mới
-        }
+            <div className="flex-1 overflow-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
+                {savedList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-300">
+                        <List size={40} strokeWidth={1.5} className="mb-2 opacity-50" />
+                        <p className="text-xs font-medium italic">Chưa lưu dữ liệu nào</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left text-sm">
+                        <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm shadow-sm z-10 text-emerald-700 text-xs uppercase font-semibold">
+                            <tr>
+                                <th className="p-3 pl-4">Kích thước</th>
+                                <th className="p-3 text-center">Q (L/s)</th>
+                                <th className="p-3 text-center">SL</th>
+                                <th className="p-3 text-right pr-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {savedList.map((item) => (
+                                <tr key={item.id} className="hover:bg-slate-50">
+                                    <td className="p-3 pl-4 font-bold text-slate-800">
+                                        {item.width} x {item.height}
+                                        <div className="text-[10px] font-normal text-slate-400">v = {item.actualVel} m/s</div>
+                                    </td>
+                                    <td className="p-3 text-center text-slate-500 font-mono text-xs">{item.flow}</td>
+                                    <td className="p-3 text-center">
+                                        <input 
+                                            type="number" 
+                                            min="1"
+                                            className="w-12 py-1 px-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold focus:border-emerald-500 focus:outline-none focus:bg-white transition-all"
+                                            value={item.qty}
+                                            onChange={(e) => updateQty(item.id, e.target.value)}
+                                        />
+                                    </td>
+                                    <td className="p-3 text-right pr-4">
+                                        <button 
+                                            onClick={() => removeFromSavedList(item.id)}
+                                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="bg-slate-50 font-semibold text-slate-600 text-xs uppercase border-t border-slate-100">
+                            <tr>
+                                <td colSpan={2} className="p-3 pl-4 text-right">Tổng cộng:</td>
+                                <td className="p-3 text-center text-emerald-600 font-bold text-sm">{savedList.reduce((acc, curr) => acc + curr.qty, 0)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                )}
+            </div>
+          </div>
 
-        // Hàm tính toán chính
-        function calculate() {
-            const velocity = parseFloat(document.getElementById('velocityInput').value) || 0;
-            const mode = document.querySelector('input[name="inputMode"]:checked').value;
-            let isValid = false;
+        </div>
+      </div>
+    </div>
+  );
+};
 
-            // Reset kết quả về mặc định nếu input không hợp lệ
-            const resetResults = () => {
-                document.getElementById('resRound').innerText = "-";
-                document.getElementById('resRectW').innerText = "-";
-                document.getElementById('summary').innerHTML = "";
-                currentArea = 0;
-            };
-
-            if (velocity <= 0) {
-                resetResults();
-                return;
-            }
-
-            // BƯỚC 1: XÁC ĐỊNH LƯU LƯỢNG (Q)
-            if (mode === 'flow') {
-                // Lấy giá trị từ ô m3/h (vì đã được đồng bộ từ ô l/s nếu nhập l/s)
-                const inputQ = parseFloat(document.getElementById('airflow').value);
-                if (inputQ > 0) {
-                    currentFlow = inputQ;
-                    isValid = true;
-                }
-            } else {
-                const w = parseFloat(document.getElementById('oldW').value);
-                const h = parseFloat(document.getElementById('oldH').value);
-                if (w > 0 && h > 0) {
-                    // Diện tích cũ (m2)
-                    const areaOld = (w / 1000) * (h / 1000);
-                    // Q = v * A * 3600
-                    currentFlow = areaOld * velocity * 3600;
-                    isValid = true;
-                }
-            }
-
-            if (!isValid) {
-                resetResults();
-                return;
-            }
-
-            // Hiển thị lưu lượng đang tính
-            document.getElementById('summary').innerHTML = 
-                `Lưu lượng tính toán: <span class="font-bold text-gray-800">${Math.round(currentFlow).toLocaleString('vi-VN')}</span> m³/h`;
-
-            // BƯỚC 2: TÍNH DIỆN TÍCH TIẾT DIỆN CẦN THIẾT (A)
-            // A (m2) = Q (m3/h) / (3600 * v)
-            currentArea = currentFlow / (3600 * velocity);
-
-            // BƯỚC 3: TÍNH ỐNG TRÒN
-            // D = 2 * sqrt(A / PI) * 1000 (đổi ra mm)
-            const diameter = 2 * Math.sqrt(currentArea / Math.PI) * 1000;
-            document.getElementById('resRound').innerText = `${Math.round(diameter)} mm`;
-
-            // BƯỚC 4: TÍNH ỐNG VUÔNG (Gọi hàm phụ)
-            recalcRect();
-        }
-
-        // Hàm tính lại chiều rộng ống vuông khi thay đổi chiều cao
-        function recalcRect() {
-            if (currentArea <= 0) {
-                document.getElementById('resRectW').innerText = "-";
-                return;
-            }
-
-            const fixedH_mm = parseFloat(document.getElementById('fixedH').value);
-            if (!fixedH_mm || fixedH_mm <= 0) {
-                 document.getElementById('resRectW').innerText = "?";
-                 return;
-            }
-
-            const fixedH_m = fixedH_mm / 1000;
-            // W = A / H
-            const width_m = currentArea / fixedH_m;
-            // Tính ra mm và làm tròn đến số chia hết cho 5 gần nhất (để thi công dễ hơn)
-            const rawWidthMm = width_m * 1000;
-            const width_mm = Math.round(rawWidthMm / 5) * 5;
-
-            document.getElementById('resRectW').innerText = `${width_mm} mm`;
-        }
-    </script>
-</body>
-</html>
+export default App;
